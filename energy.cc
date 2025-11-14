@@ -22,7 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include"vector.h"
 #include"defines.h"
 #include<stdio.h>
-#include<iostream.h>
+#include<iostream>
+using namespace std;
 
 EnergyClass::EnergyClass() :
   food(0),

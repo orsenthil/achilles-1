@@ -1,22 +1,78 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(hebbian.cc)
+AC_INIT(achilles, 0.0.5)
 AC_CONFIG_AUX_DIR(config)
-AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(achilles,0.0.5)
+AC_CONFIG_HEADERS([config.h])
+AM_INIT_AUTOMAKE([1.9 foreign])
 
 dnl Checks for programs.
 AC_PROG_CXX
+AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
 dnl AM_PROG_LIBTOOL
 
 AC_PATH_XTRA
 
 LIBS=$X_LIBS
 dnl LIBS='-L/usr/X11R6/lib'
+
+dnl Initialize pkg-config variables
+SDL2_CFLAGS=""
+SDL2_LIBS=""
+GL_CFLAGS=""
+GL_LIBS=""
+GLU_CFLAGS=""
+GLU_LIBS=""
+
+dnl Check for pkg-config and use it to find SDL2, OpenGL, and GLU
+AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
+if test "x$PKG_CONFIG" != "xno"; then
+  dnl Check for SDL2
+  AC_MSG_CHECKING([for SDL2 via pkg-config])
+  if $PKG_CONFIG --exists sdl2 2>/dev/null; then
+    SDL2_CFLAGS=`$PKG_CONFIG --cflags sdl2 2>/dev/null`
+    SDL2_LIBS=`$PKG_CONFIG --libs sdl2 2>/dev/null`
+    AC_MSG_RESULT([yes])
+    AC_DEFINE(HAVE_SDL2, 1, [Define if SDL2 is available])
+  else
+    AC_MSG_RESULT([no])
+    dnl Fall back to SDL1 check
+    AC_CHECK_LIB(SDL, SDL_SetVideoMode)
+  fi
+
+  dnl Check for OpenGL
+  AC_MSG_CHECKING([for OpenGL via pkg-config])
+  if $PKG_CONFIG --exists gl 2>/dev/null; then
+    GL_CFLAGS=`$PKG_CONFIG --cflags gl 2>/dev/null`
+    GL_LIBS=`$PKG_CONFIG --libs gl 2>/dev/null`
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    dnl Fall back to traditional checks
+    AC_CHECK_LIB(opengl32,glEnable,, [AC_MSG_WARN([If this is Win32, you need lib$lib])])
+    AC_CHECK_LIB(GL,glEnable,,[AC_MSG_WARN([If this is Linux, you need lib$lib])])
+  fi
+
+  dnl Check for GLU
+  AC_MSG_CHECKING([for GLU via pkg-config])
+  if $PKG_CONFIG --exists glu 2>/dev/null; then
+    GLU_CFLAGS=`$PKG_CONFIG --cflags glu 2>/dev/null`
+    GLU_LIBS=`$PKG_CONFIG --libs glu 2>/dev/null`
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    dnl Fall back to traditional checks
+    AC_CHECK_LIB(glu32,gluPerspective,, [AC_MSG_WARN([If this is Win32, you need lib$lib])])
+    AC_CHECK_LIB(GLU,gluPerspective,,[AC_MSG_WARN([If this is Linux, you need lib$lib])])
+  fi
+else
+  dnl No pkg-config, use traditional library checks
+  AC_CHECK_LIB(opengl32,glEnable,, [AC_MSG_WARN([If this is Win32, you need lib$lib])])
+  AC_CHECK_LIB(glu32,gluPerspective,, [AC_MSG_WARN([If this is Win32, you need lib$glu32])])
+  AC_CHECK_LIB(GL,glEnable,,[AC_MSG_WARN([If this is Linux, you need lib$lib])])
+  AC_CHECK_LIB(GLU,gluPerspective,,[AC_MSG_WARN([If this is Linux, you need lib$lib])])
+  AC_CHECK_LIB(SDL, SDL_SetVideoMode)
+fi
+
 dnl Checks for libraries. (some are for various platforms and expected to fail)
-AC_CHECK_LIB(opengl32,glEnable,, [AC_MSG_WARN([If this is Win32, you need lib$lib])])
-AC_CHECK_LIB(glu32,gluPerspective,, [AC_MSG_WARN([If this is Win32, you need lib$lib])])
-AC_CHECK_LIB(GL,glEnable,,[AC_MSG_WARN([If this is Linux, you need lib$lib])])
-AC_CHECK_LIB(GLU,gluPerspective,,[AC_MSG_WARN([If this is Linux, you need lib$lib])])
 AC_CHECK_LIB(posix4, main,, [AC_MSG_WARN([If this is Solaris, you need libposix4])])
 AC_CHECK_LIB(z, main)
 AC_CHECK_LIB(m, main)
@@ -26,10 +82,7 @@ AC_CHECK_LIB(X11, main)
 AC_CHECK_LIB(Xi, main)
 AC_CHECK_LIB(Xmu, main)
 
-AC_CHECK_LIB(SDL, SDL_SetVideoMode)
-
 dnl Checks for header files.
-AC_HEADER_STDC
 AC_CHECK_HEADERS(GL/gl.h GL/glu.h SDL/SDL.h SDL.h limits.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -37,5 +90,14 @@ AC_C_CONST
 
 dnl Checks for library functions.
 
+dnl Substitute pkg-config variables into Makefile
+AC_SUBST(SDL2_CFLAGS)
+AC_SUBST(SDL2_LIBS)
+AC_SUBST(GL_CFLAGS)
+AC_SUBST(GL_LIBS)
+AC_SUBST(GLU_CFLAGS)
+AC_SUBST(GLU_LIBS)
+
 AC_SUBST(PACKAGE)
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

@@ -20,12 +20,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 
-#include<iostream.h>
+#include<iostream>
 #include<stdio.h>
 #include"universe.h"
 #include<time.h>
 #include<stdlib.h>
 #include"defines.h"
+using namespace std;
 
 int FLOOR_BLOCKS_X=6;
 int FLOOR_BLOCKS_Z=6;
@@ -83,6 +84,9 @@ int main(int argc, char *argv[]) {
   if(NUM_ORGANISMS < 0) NUM_ORGANISMS = 1;
   if(FLOOR_BLOCKS_X < 0) FLOOR_BLOCKS_X = 4;
   if(FLOOR_BLOCKS_Z < 0) FLOOR_BLOCKS_Z = 4;
+
+  printf("[INIT] Configuration: FLOOR_BLOCKS_X=%d, FLOOR_BLOCKS_Z=%d, NUM_ORGANISMS=%d, NUM_FOOD=%d\n", 
+         FLOOR_BLOCKS_X, FLOOR_BLOCKS_Z, NUM_ORGANISMS, NUM_FOOD);
 
   UniverseClass *univ=new UniverseClass(argc,argv);
   univ->MainLoop();

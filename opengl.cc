@@ -23,8 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include<GL/glu.h>
 //#include<SDL/SDL.h>
 #include<math.h>
-#include<iostream.h>
+#include<iostream>
 #include"org.h"
+using namespace std;
 #include"vector.h"
 #include"gene.h"
 #include"defines.h"
@@ -38,14 +39,32 @@ OpenGLClass::OpenGLClass(int argc, char **argv) {
     fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
     exit(1);
   }
+#ifdef SDL_VERSION_ATLEAST
+  // SDL2 API
+  window = SDL_CreateWindow("Achilles", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                            SCREEN_W, SCREEN_H, SDL_WINDOW_OPENGL);
+  if (window == NULL) {
+    fprintf(stderr, "Unable to create OpenGL window: %s\n", SDL_GetError());
+    SDL_Quit();
+    exit(2);
+  }
+  glcontext = SDL_GL_CreateContext(window);
+  if (glcontext == NULL) {
+    fprintf(stderr, "Unable to create OpenGL context: %s\n", SDL_GetError());
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    exit(2);
+  }
+  surface = NULL; // Not used in SDL2
+#else
+  // SDL1 API
   if ( (surface=SDL_SetVideoMode(SCREEN_W, SCREEN_H, 0, SDL_OPENGL)) == NULL ) {
     fprintf(stderr, "Unable to create OpenGL screen: %s\n", SDL_GetError());
     SDL_Quit();
     exit(2);
   }
-
   SDL_WM_SetCaption("Achilles", NULL);
-
+#endif
 
   InitGL(SCREEN_W,SCREEN_H);
 }
@@ -82,6 +101,11 @@ bool OpenGLClass::InitGL(int W,int H) {
 
 
 OpenGLClass::~OpenGLClass() {
+#ifdef SDL_VERSION_ATLEAST
+  // SDL2 cleanup
+  if (glcontext) SDL_GL_DeleteContext(glcontext);
+  if (window) SDL_DestroyWindow(window);
+#endif
   SDL_Quit();
 }
 
@@ -92,7 +116,11 @@ bool OpenGLClass::Clear() {
 }
 
 bool OpenGLClass::SwapBuffers() {
+#ifdef SDL_VERSION_ATLEAST
+  SDL_GL_SwapWindow(window);
+#else
   SDL_GL_SwapBuffers();
+#endif
   return true;
 }
 
@@ -263,7 +291,7 @@ bool OpenGLClass::DrawStack(stack<EventStack> &s) {
 }
 
 bool OpenGLClass::CheckInput(double &xpos,double &ypos,double &zpos,double &yrot, int &done, int &pause) {
-  Uint8 *keys;
+  Uint8 *keys = NULL;
   SDL_Event event;
 
   while ( SDL_PollEvent(&event) ) {
@@ -277,9 +305,58 @@ bool OpenGLClass::CheckInput(double &xpos,double &ypos,double &zpos,double &yrot
     }
   }
   
-  keys=SDL_GetKeyState(NULL);
-
 #define piover180 MY_PI/180
+
+#ifdef SDL_VERSION_ATLEAST
+  // SDL2: Must pump events before getting keyboard state
+  // SDL2 uses scancodes, not keycodes for keyboard state array
+  SDL_PumpEvents();
+  int numkeys;
+  const Uint8 *keystate = SDL_GetKeyboardState(&numkeys);
+  if (keystate == NULL) {
+    fprintf(stderr, "Warning: SDL_GetKeyboardState returned NULL\n");
+    return false;
+  }
+  
+  // Convert keycodes to scancodes for SDL2
+  if ( keystate[SDL_GetScancodeFromKey(SDLK_UP)] ) {
+    xpos -= (double)sin(yrot*piover180) * USER_SPEED;
+    zpos -= (double)cos(yrot*piover180) * USER_SPEED; 
+  }
+  if ( keystate[SDL_GetScancodeFromKey(SDLK_DOWN)] ) {
+    xpos += (double)sin(yrot*piover180) * USER_SPEED;
+    zpos += (double)cos(yrot*piover180) * USER_SPEED;  
+  }
+  if ( keystate[SDL_GetScancodeFromKey(SDLK_LEFT)] ) {
+    yrot += 4.0;
+  }
+  if ( keystate[SDL_GetScancodeFromKey(SDLK_RIGHT)] ) {
+    yrot -= 4.0;
+  }
+  if ( keystate[SDL_GetScancodeFromKey(SDLK_PAGEUP)] ) {
+    ypos += USER_SPEED;
+  }
+  if ( keystate[SDL_GetScancodeFromKey(SDLK_PAGEDOWN)] ) {
+    ypos-= USER_SPEED;
+  }
+  if ( keystate[SDL_GetScancodeFromKey(SDLK_p)] ) {
+    if(pause == 0) pause = 2;
+    if(pause == 1) pause = -1;
+  }
+  if ( !keystate[SDL_GetScancodeFromKey(SDLK_p)] ) {
+    if(pause == 2) pause = 1;
+    if(pause == -1) pause = 0;
+  }
+  if ( !took_screenshot && keystate[SDL_GetScancodeFromKey(SDLK_s)] ) {
+    took_screenshot=1;
+    Screenshot("screenshot.png");
+  }
+  if ( took_screenshot && !keystate[SDL_GetScancodeFromKey(SDLK_s)] ) {
+    took_screenshot=0;
+  }
+#else
+  // SDL1: uses keycodes directly
+  keys=SDL_GetKeyState(NULL);
   
   if ( keys[SDLK_UP] == SDL_PRESSED ) {
     xpos -= (double)sin(yrot*piover180) * USER_SPEED;
@@ -316,6 +393,7 @@ bool OpenGLClass::CheckInput(double &xpos,double &ypos,double &zpos,double &yrot
   if ( took_screenshot && keys[SDLK_s] != SDL_PRESSED) {
     took_screenshot=0;
   }
+#endif
   return true;
 }
 

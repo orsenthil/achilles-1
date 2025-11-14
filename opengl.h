@@ -21,12 +21,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef OPENGL_H_67548
 #define OPENGL_H_67548
 #include<stack>
+using namespace std;
 
 #include"conf.h"
 #ifdef HAVE_SDL_SDL_H
 #include<SDL/SDL.h>
-#else 
+#elif defined(HAVE_SDL_H)
 #include<SDL.h>
+#else
+// Try to find SDL - check multiple possible locations
+#if __has_include(<SDL2/SDL.h>)
+#include<SDL2/SDL.h>
+#elif __has_include(<SDL/SDL.h>)
+#include<SDL/SDL.h>
+#elif __has_include(<SDL.h>)
+#include<SDL.h>
+#else
+// Last resort: try SDL2 in common non-standard locations
+#include</home/linuxbrew/.linuxbrew/include/SDL2/SDL.h>
+#endif
 #endif
 
 class OrganismClass;
@@ -34,7 +47,13 @@ struct EventStack;
 
 class OpenGLClass {
 private:
+#ifdef SDL_VERSION_ATLEAST
+  SDL_Window *window;
+  SDL_GLContext glcontext;
+  SDL_Surface *surface; // Keep for compatibility, not used in SDL2
+#else
   SDL_Surface *surface;
+#endif
   bool took_screenshot;
 public:
   OpenGLClass(int,char **);

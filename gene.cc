@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include"braininfo.h"
 #include"defines.h"
 #include<stdio.h>
+#include<stdlib.h>
+using namespace std;
 
 GeneClass::GeneClass() { // randomly generate one
   int i;

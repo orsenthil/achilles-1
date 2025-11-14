@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define UNIVERSE_H_87634
 #include<vector>
 #include<stack>
+using namespace std;
 #include"vector.h"
 #include"color.h"
 

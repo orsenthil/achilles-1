@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // Hebbian neural network simulator
 // This is a stand-alone class btw :)
 
-#include<iostream.h>
+#include<iostream>
 #include<time.h>
 #include<stdlib.h>
 #include<string.h>
@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include<vector>
 #include<math.h>
 #include"hebbian.h"
+using namespace std;
 
 
 

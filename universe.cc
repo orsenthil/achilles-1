@@ -18,9 +18,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#include<iostream.h>
+#include<iostream>
 #include<stdio.h>
 #include<math.h>
+using namespace std;
 #include"universe.h"
 #include"opengl.h"
 #include"world.h"
@@ -31,7 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include"vector.h"
 #include"gene.h"
 #include"org.h"
-#include"unistd.h"
+#include<unistd.h>
 #include"energy.h"
 #include"hebbian.h"
 #include"defines.h"
@@ -108,6 +109,9 @@ bool UniverseClass::MainLoop() {
    * This section creates the initial organisms and food
    */
 
+  printf("[INIT] Creating initial organisms and food: NUM_ORGANISMS=%d, NUM_FOOD=%d\n", 
+         NUM_ORGANISMS, NUM_FOOD);
+
   for(i=0;i<NUM_ORGANISMS + NUM_FOOD;i++) {
     // Each Organism is represented by a unique Id
     token = idserver->GetToken();
@@ -128,11 +132,17 @@ bool UniverseClass::MainLoop() {
     orglist->Append(o);
 
     // If we've created all the organisms, do food instead
-    if(i>=NUM_ORGANISMS)
+    if(i>=NUM_ORGANISMS) {
       o->Type(ORGANISM_FOOD); // Make it into food instead!
-    else // otherwise give it full energy to start
-      o->Energy().EatFood(o->Energy().FoodCap()); 
+      printf("[INIT] Created food organism #%d\n", i - NUM_ORGANISMS + 1);
+    } else {
+      // otherwise give it full energy to start
+      o->Energy().EatFood(o->Energy().FoodCap());
+      printf("[INIT] Created live organism #%d\n", i + 1);
+    }
   }
+  
+  printf("[INIT] Initialization complete. Total organisms created: %d\n", NUM_ORGANISMS + NUM_FOOD);
   
   int frames = 0;
   long start_time = time(NULL);
@@ -188,7 +198,10 @@ bool UniverseClass::Update() {
   // Check to see if the number of organisms have fallen below a certain
   // amount and if they have, to add a new organism randomly
   // (and print a silly message too!)
-  if((signed int)livelist.size() < NUM_ORGANISMS) {
+  // BUGFIX: Only spawn if NUM_ORGANISMS > 0 (user explicitly wants organisms)
+  if(NUM_ORGANISMS > 0 && (signed int)livelist.size() < NUM_ORGANISMS) {
+    printf("[UPDATE] Spawning new organism: livelist.size()=%d < NUM_ORGANISMS=%d\n", 
+           (int)livelist.size(), NUM_ORGANISMS);
     cout << "New guy!" << endl;
     token = idserver->GetToken();
     pos = world->NewPosition();
@@ -200,7 +213,10 @@ bool UniverseClass::Update() {
   }
 
   // Same as above, but for food instead
-  if((signed int)foodlist.size() < NUM_FOOD) {
+  // BUGFIX: Only spawn if NUM_FOOD > 0 (user explicitly wants food)
+  if(NUM_FOOD > 0 && (signed int)foodlist.size() < NUM_FOOD) {
+    printf("[UPDATE] Spawning new food: foodlist.size()=%d < NUM_FOOD=%d\n", 
+           (int)foodlist.size(), NUM_FOOD);
     cout << "More food!" << endl;
     token = idserver->GetToken();
     pos = world->NewPosition();
@@ -209,6 +225,10 @@ bool UniverseClass::Update() {
     o = new OrganismClass(token,pos,heading,genes);
     orglist->Append(o);
     o->Type(ORGANISM_FOOD);
+  } else if(NUM_FOOD == 0 && (signed int)foodlist.size() > 0) {
+    // If user set NUM_FOOD=0 but food exists, log it (shouldn't happen after fix)
+    printf("[UPDATE] WARNING: NUM_FOOD=0 but foodlist.size()=%d (this should not spawn new food)\n", 
+           (int)foodlist.size());
   }
 
   int i;

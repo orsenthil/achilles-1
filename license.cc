@@ -1,5 +1,6 @@
-#include<iostream.h>
+#include<iostream>
 #include"defines.h"
+using namespace std;
 
 bool ShowLicense() {
   cout << "Achilles " << ACHILLES_VERSION << ", Copyright (C) 2000 Matthew Danish" << endl;
