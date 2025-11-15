@@ -188,7 +188,10 @@ bool UniverseClass::Update() {
     if(o->Type()==ORGANISM_LIVE) livelist.push_back(o);
     
     if(o->Type()==ORGANISM_FOOD) {
+      // Check food lifespan before calling Lifetick to show remaining time
+      // Note: We can't easily access lifespan from here, so we'll log after decay
       if(!o->Lifetick()) { // check if food has decayed
+	printf("Decay! (food item expired after %d ticks, removed from world)\n", DECAY_SPAN);
 	orglist->Remove(o->Id());
       } else
 	foodlist.push_back(o);
@@ -202,7 +205,7 @@ bool UniverseClass::Update() {
   if(NUM_ORGANISMS > 0 && (signed int)livelist.size() < NUM_ORGANISMS) {
     printf("[UPDATE] Spawning new organism: livelist.size()=%d < NUM_ORGANISMS=%d\n", 
            (int)livelist.size(), NUM_ORGANISMS);
-    cout << "New guy!" << endl;
+    printf("New guy!\n");
     token = idserver->GetToken();
     pos = world->NewPosition();
     heading = new AngleClass(0);
@@ -215,7 +218,9 @@ bool UniverseClass::Update() {
   // Same as above, but for food instead
   // BUGFIX: Only spawn if NUM_FOOD > 0 (user explicitly wants food)
   if(NUM_FOOD > 0 && (signed int)foodlist.size() < NUM_FOOD) {
-    printf("[UPDATE] Spawning new food: foodlist.size()=%d < NUM_FOOD=%d\n", 
+    // Food was eaten or decayed - respawn to maintain NUM_FOOD count
+    // This is expected behavior: system maintains constant food supply
+    printf("[UPDATE] Spawning new food: foodlist.size()=%d < NUM_FOOD=%d (food was eaten/decayed)\n", 
            (int)foodlist.size(), NUM_FOOD);
     cout << "More food!" << endl;
     token = idserver->GetToken();
@@ -294,6 +299,64 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
     inputs.push_back((float)olist[i].color.G());
     inputs.push_back((float)olist[i].color.B());
     i++;
+  }
+
+  // FOOD VISION: Allow organisms to see food items (yellow objects)
+  // This enables foraging behavior to evolve
+  // Follows same pattern as organism vision above
+  vector<OList> foodvision;
+  VectorClass food_headingvect = o->Heading().Vector(); // Reuse heading vector
+  int food_idx;
+  for(food_idx=0; food_idx < (signed int)foodlist.size(); food_idx++) {
+    // Safety check: ensure food item exists and is actually food
+    if(foodlist[food_idx] && foodlist[food_idx]->Type() == ORGANISM_FOOD) {
+      OList food_ol;
+      food_ol.distv = (foodlist[food_idx]->Pos() - o->Pos());
+      
+      // Field of view check: only see food in front of organism
+      // Same dot product test as organism vision
+      if(food_ol.distv.Dot(food_headingvect) > 0) {
+	food_ol.dist = food_ol.distv.Magnitude();
+	
+	// Food is always yellow: R=1.0, G=1.0, B=0.0
+	// This is how organisms learn to identify food
+	food_ol.color.R(1.0);
+	food_ol.color.G(1.0);
+	food_ol.color.B(0.0);
+	
+	// Calculate heading angle relative to organism's current heading
+	food_ol.heading = food_ol.distv;
+	food_ol.heading -= o->Heading();
+	
+	foodvision.push_back(food_ol);
+      }
+    }
+  }
+  
+  // Sort food by distance (closest first) - prioritizes nearby food
+  QuickSortOList(foodvision);
+  
+  // Feed food vision data to neural network inputs
+  // Same pattern as organism vision: 5 values per food (distance, angle, R, G, B)
+  int food_i = 0;
+  long food_reallen = foodvision.size();
+  
+#ifdef _DEBUG_FOOD_VISION
+  // Debug output: verify food vision is working
+  static int debug_frame_count = 0;
+  if(debug_frame_count++ % 100 == 0 && food_reallen > 0) {
+    printf("[FOOD_VISION] Organism sees %ld food items, closest at distance %f\n", 
+           food_reallen, foodvision[0].dist);
+  }
+#endif
+  
+  while(food_i < food_reallen && (signed int)(inputs.size()+5) < o->Brain().NumInputs()) {
+    inputs.push_back((float)foodvision[food_i].dist);
+    inputs.push_back((float)foodvision[food_i].heading.Angle());
+    inputs.push_back((float)foodvision[food_i].color.R()); // Should be 1.0
+    inputs.push_back((float)foodvision[food_i].color.G()); // Should be 1.0
+    inputs.push_back((float)foodvision[food_i].color.B()); // Should be 0.0
+    food_i++;
   }
 
 #else
@@ -376,14 +439,21 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 
   // Set the Aggressive coloration (Red channel)
   // Brighter red = more aggressive (based on fight output)
-  double red_value = double(( abs_d(outputs[3]) > FIGHT_THRESHOLD ? FIGHT_THRESHOLD : abs_d(outputs[3]) ) / (FIGHT_THRESHOLD));
+  // Use sigmoid-like normalization to map outputs to 0-1 range for visible colors
+  // Neural network outputs can vary widely, so we use tanh to normalize them
+  double red_raw = abs_d(outputs[3]);
+  // Use a smaller scale factor (50) to make colors more vibrant and visible
+  // This ensures even small output values produce visible colors
+  double red_scale = 50.0;
+  double red_value = (tanh(red_raw / red_scale) + 1.0) / 2.0; // Map tanh output [-1,1] to [0,1]
   o->Color().R(red_value);
   
   // Set the Mating coloration (Blue channel)
   // Brighter blue = more likely to mate (based on mate output)
-  // Use FIGHT_THRESHOLD as scaling factor for consistency (neural net outputs can be large)
-  // This ensures blue scales similarly to red for visual consistency
-  double blue_value = double(( abs_d(outputs[2]) > FIGHT_THRESHOLD ? FIGHT_THRESHOLD : abs_d(outputs[2]) ) / (FIGHT_THRESHOLD));
+  // Use same normalization approach for consistency
+  double blue_raw = abs_d(outputs[2]);
+  double blue_scale = 50.0;
+  double blue_value = (tanh(blue_raw / blue_scale) + 1.0) / 2.0; // Map tanh output [-1,1] to [0,1]
   if(blue_value > 1.0) blue_value = 1.0;
   o->Color().B(blue_value);
   
@@ -398,12 +468,15 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
       if(foodlist[i]) {
 	distv=foodlist[i]->Pos() - o->Pos();
 	long bounds = o->Genes().Reach();
-	distv.X(abs_d(distv.X()) - bounds - o->Size().X());
-	distv.Z(abs_d(distv.Z()) - bounds - o->Size().Z());
+	double actual_dist_x = abs_d(distv.X());
+	double actual_dist_z = abs_d(distv.Z());
+	distv.X(actual_dist_x - bounds - o->Size().X());
+	distv.Z(actual_dist_z - bounds - o->Size().Z());
 	if(distv.X() <= 0 && distv.Z() <= 0) {
 	  double amt_food=(1-double(bounds/MAX_REACH)) * foodlist[i]->Energy().HealthCap() * (1+o->Genes().Metabolism());
 #ifdef _DEBUG_FOOD
-	  printf("Food Eaten: %f\n",amt_food);
+	  printf("Food Eaten: %f (distance: X=%.2f, Z=%.2f, reach=%ld, size=%.2f)\n",
+		 amt_food, actual_dist_x, actual_dist_z, bounds, o->Size().X());
 #endif
 	  EventStack es;
 	  es.a = o->Pos();
@@ -413,8 +486,11 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 	  es.color.R(1);
 	  es.color.G(1);
 	  es.color.B(0);
+	  es.frames_remaining = EVENT_FLASH_DURATION;
 	  foodstack.push(es);
 	  o->Energy().EatFood(amt_food);
+	  printf("Eat! (food amount: %.2f, new energy: %.2f/%.2f)\n", 
+		 amt_food, o->Energy().Food(), o->Energy().FoodCap());
 	  orglist->Remove(foodlist[i]->Id());
 	  foodlist[i]=NULL;
 	  break;
@@ -445,7 +521,42 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
       cout << "Fight: " << outputs[3] << " " << mate_outputs[3] << endl;
       cout << "Mate: " << outputs[2] << " " << mate_outputs[2] << endl;
 #endif
-      if(abs_f(mate_outputs[3]) * abs_f(outputs[3]) > FIGHT_THRESHOLD*FIGHT_THRESHOLD * NUM_ORGANISMS/org_count ) {
+      // Fight condition: product of both organisms' fight outputs must exceed threshold
+      // Threshold scales with population: more organisms = easier to fight
+      double fight_threshold = FIGHT_THRESHOLD * FIGHT_THRESHOLD * NUM_ORGANISMS / org_count;
+      double fight_product = abs_f(mate_outputs[3]) * abs_f(outputs[3]);
+      
+      // Always log when organisms are close enough to potentially fight/mate
+      // This helps debug why fights aren't happening
+      static int proximity_count = 0;
+      proximity_count++;
+      if(proximity_count % 20 == 0) {  // Log more frequently
+	printf("[PROXIMITY] Organisms close! fight_outputs[3]=%.2f, mate_outputs[3]=%.2f, product=%.2f, threshold=%.2f (NUM_ORGS=%d, org_count=%d)\n",
+	       outputs[3], mate_outputs[3], fight_product, fight_threshold, NUM_ORGANISMS, org_count);
+	printf("[PROXIMITY]   -> Fight would need: product > %.2f (currently %.2f)\n", fight_threshold, fight_product);
+	printf("[PROXIMITY]   -> Mate outputs: %.2f x %.2f = %.2f\n", outputs[2], mate_outputs[2], abs_f(outputs[2]) * abs_f(mate_outputs[2]));
+      }
+      
+      if(fight_product > fight_threshold) {
+	// Log before attempting fight to see if it succeeds
+	double genetic_variance = o->Genes().Variance(mate->Genes());
+	
+	// Debug: Show actual DNA values to understand why variance is 0
+	static int debug_gene_count = 0;
+	if(debug_gene_count++ < 5 && genetic_variance < 0.001) {
+	  // Access DNA directly for debugging (we'll need to add a getter or make DNA public temporarily)
+	  printf("[DEBUG_GENES] Variance=%.4f, showing first 3 genes:\n", genetic_variance);
+	  printf("[DEBUG_GENES]   Gene 0 (SIZE_X): org1=%ld, org2=%ld, diff=%ld\n",
+		 (long)o->Genes().Size().X(), (long)mate->Genes().Size().X(),
+		 (long)(o->Genes().Size().X() - mate->Genes().Size().X()));
+	  printf("[DEBUG_GENES]   Gene 3 (STRENGTH): org1=%.2f, org2=%.2f\n",
+		 o->Genes().GetStrength(), mate->Genes().GetStrength());
+	  printf("[DEBUG_GENES]   Gene 4 (MAXSPEED): org1=%.2f, org2=%.2f\n",
+		 o->Genes().MaxSpeed(), mate->Genes().MaxSpeed());
+	}
+	
+	printf("[FIGHT_ATTEMPT] Product=%.2f > threshold=%.2f, genetic_variance=%.4f (need > %.4f)\n",
+	       fight_product, fight_threshold, genetic_variance, MISCEGENATION_RATE);
 	Fight(o,mate);
       } else if (org_count < NUM_ORGANISMS+2*NUM_FOOD && abs_f(mate_outputs[2]) * abs_f(outputs[2]) > REPRODUCTION_THRESHOLD * org_count/NUM_ORGANISMS) {
 	Mate(o,mate);
@@ -469,8 +580,18 @@ bool UniverseClass::Fight(OrganismClass *o1, OrganismClass *o2) {
   // sorry, no playing with food
   if(o1->Type() != ORGANISM_LIVE || o2->Type() != ORGANISM_LIVE) return false;
 
-  if(o1->Genes().Variance(o2->Genes()) < MISCEGENATION_RATE) { // yea its for mating but wahtever
-    return false;
+  // Genetic variance check: Originally meant for mating (prevent inbreeding)
+  // For fighting, this is too restrictive - organisms should be able to fight
+  // even if genetically similar. Lower threshold or remove for fighting.
+  double genetic_variance = o1->Genes().Variance(o2->Genes());
+  double fight_variance_threshold = 0.001;  // Much lower threshold for fighting (vs 0.05 for mating)
+  
+  if(genetic_variance < fight_variance_threshold) {
+    // Organisms are essentially identical (likely a bug in variance calculation or gene generation)
+    // For now, allow fights even with low variance to prevent blocking all fights
+    printf("[FIGHT_WARNING] Very low genetic variance %.4f (organisms nearly identical, allowing fight anyway)\n", 
+           genetic_variance);
+    // Don't return false - allow the fight to proceed
   }
 
   // calculate damage done and energy needed to do it
@@ -485,11 +606,15 @@ bool UniverseClass::Fight(OrganismClass *o1, OrganismClass *o2) {
 #endif
 
   // if ya don't got enough energy you can't do any damage...
-  if(o1->Energy().Food() < energy_used) return false;
+  if(o1->Energy().Food() < energy_used) {
+    printf("[FIGHT_BLOCKED] Not enough energy: have %.2f, need %.2f\n", 
+           o1->Energy().Food(), energy_used);
+    return false;
+  }
   
   // Use it if you got it
   o1->Energy().UseEnergy(energy_used);
-  cout << "Fight!" << endl;
+  printf("Attack! (damage: %.2f, energy used: %.2f)\n", damage, energy_used);
 
   // makes those little flashes between organisms :)
   EventStack es;
@@ -500,12 +625,13 @@ bool UniverseClass::Fight(OrganismClass *o1, OrganismClass *o2) {
   es.color.R(1);
   es.color.G(0);
   es.color.B(0);
+  es.frames_remaining = EVENT_FLASH_DURATION;
   fightstack.push(es);
 
   // Take that!
   if(!o2->Energy().TakeDamage(damage)) {
     o2->Type(ORGANISM_FOOD); // Uh oh, he died
-    cout << "Kill!" << endl;
+    printf("Kill! (organism died and became food)\n");
   }
 #ifdef _DEBUG_FIGHT
   printf("%s has %f health left.\n",s2,o2->Energy().Health());
@@ -533,7 +659,7 @@ bool UniverseClass::Mate(OrganismClass *o1, OrganismClass *o2) {
   o2->Energy().UseEnergy(o2_spend);
 
   // spread the word
-  cout << "Mate." << endl;
+  printf("Mate! (energy spent: o1=%.2f, o2=%.2f)\n", o1_spend, o2_spend);
 
   // show a flash
   EventStack es;
@@ -544,6 +670,7 @@ bool UniverseClass::Mate(OrganismClass *o1, OrganismClass *o2) {
   es.color.R(0);
   es.color.G(0);
   es.color.B(1);
+  es.frames_remaining = EVENT_FLASH_DURATION;
   matestack.push(es);
 
   // create an kiddie

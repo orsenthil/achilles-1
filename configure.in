@@ -90,6 +90,20 @@ AC_C_CONST
 
 dnl Checks for library functions.
 
+dnl Check for debug flags - can be enabled via configure option or CPPFLAGS
+dnl Option 1: CPPFLAGS=-D_DEBUG_FOOD_VISION ./configure
+dnl Option 2: ./configure --enable-debug-food-vision (if we add AC_ARG_ENABLE)
+DEBUG_CPPFLAGS=""
+if test -n "$CPPFLAGS"; then
+  case "$CPPFLAGS" in
+    *-D_DEBUG_FOOD_VISION*)
+      # Extract just the debug flag, don't duplicate CPPFLAGS
+      DEBUG_CPPFLAGS="-D_DEBUG_FOOD_VISION"
+      AC_MSG_NOTICE([Food vision debugging enabled via CPPFLAGS])
+      ;;
+  esac
+fi
+
 dnl Substitute pkg-config variables into Makefile
 AC_SUBST(SDL2_CFLAGS)
 AC_SUBST(SDL2_LIBS)
@@ -97,6 +111,7 @@ AC_SUBST(GL_CFLAGS)
 AC_SUBST(GL_LIBS)
 AC_SUBST(GLU_CFLAGS)
 AC_SUBST(GLU_LIBS)
+AC_SUBST(DEBUG_CPPFLAGS)
 
 AC_SUBST(PACKAGE)
 AC_CONFIG_FILES([Makefile])

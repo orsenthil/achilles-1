@@ -27,8 +27,17 @@
 #define ORGANISM_LIVE 0
 #define ORGANISM_FOOD 1
 
-#define FIGHT_THRESHOLD 10000
-#define REPRODUCTION_THRESHOLD 1
+// Fight threshold: lower values = more fights
+// Original: 10000 (very high, fights rare)
+// Recommended for testing: 50-200 (fights more common)
+// For evolution: 1000-5000 (balanced)
+// Note: Threshold is squared in calculation, so 100 becomes 10,000
+#define FIGHT_THRESHOLD 5000
+#define REPRODUCTION_THRESHOLD 500
+
+// Flash visibility duration (in frames)
+// At 60fps: 10 frames = ~0.17 seconds, 15 frames = ~0.25 seconds
+#define EVENT_FLASH_DURATION 15
 
 //#define LEARNING_CONSTANT 0.5
 #define ALPHA_COEFFICIENT -1

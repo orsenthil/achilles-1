@@ -59,14 +59,31 @@ double GeneClass::MutationRate() {
 double GeneClass::Variance(GeneClass &a) {
   double abs_d(double);
   double average=0;
+  int valid_genes = 0;
 
-  for(int i=0;i<NUM_GENES;i++) 
-    average+= double(DNA[i] - a.DNA[i])/double(GeneLimits[i].max - GeneLimits[i].min);
-  average/=NUM_GENES;
+  // BUGFIX: Take absolute value of each difference BEFORE averaging
+  // Otherwise positive and negative differences cancel out, making
+  // genetically different organisms appear similar
+  for(int i=0;i<NUM_GENES;i++) {
+    // Calculate normalized difference for this gene
+    long gene_diff = DNA[i] - a.DNA[i];
+    long gene_range = GeneLimits[i].max - GeneLimits[i].min;
+    if(gene_range == 0) {
+      // Gene has no range (min == max), skip it
+      continue;
+    }
+    double diff = double(gene_diff) / double(gene_range);
+    average += abs_d(diff);  // Use absolute difference for each gene
+    valid_genes++;
+  }
+  // Divide by number of valid genes (genes with non-zero range)
+  if(valid_genes > 0) {
+    average /= valid_genes;
+  }
 #ifdef _DEBUG
-  cout << "Variance: " << average << endl;
+  cout << "Variance: " << average << " (from " << valid_genes << " valid genes)" << endl;
 #endif
-  return abs_d(average);
+  return average;  // Already positive, no need for abs_d
 }
 
 VectorClass GeneClass::Size() {

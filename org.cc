@@ -129,7 +129,11 @@ bool OrganismClass::Lifetick() {
       return false;
     }
   } else {
-    if(--lifespan<=0) return false;
+    // Food decay: lifespan counts down each tick
+    if(--lifespan<=0) {
+      // Food has fully decayed
+      return false;
+    }
   }
 
   return true;

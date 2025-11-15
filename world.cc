@@ -53,13 +53,16 @@ AngleClass &WorldClass::Heading() {
 VectorClass * WorldClass::NewPosition() {
   VectorClass *v;
 
-  //  v= new VectorClass(Size().X()/2-FLOOR_QUAD_SIZE/2,0,Size().Z()/2+FLOOR_QUAD_SIZE/2);
-  //  v= new VectorClass(-Size().X()/2-FLOOR_QUAD_SIZE/2,0,Size().Z()/2+FLOOR_QUAD_SIZE/2);
-  //  v= new VectorClass(Size().X()/2-FLOOR_QUAD_SIZE/2,0,-Size().Z()/2-FLOOR_QUAD_SIZE/2);
-  //  v= new VectorClass(-Size().X()/2-FLOOR_QUAD_SIZE/2,0,-Size().Z()/2-FLOOR_QUAD_SIZE/2);
-  v=new VectorClass(double(rand())/RAND_MAX * Size().X() - Size().X()/2-FLOOR_QUAD_SIZE/2,
-		    0,
-		    double(rand())/RAND_MAX * (Size().Z()+FLOOR_QUAD_SIZE) - Size().Z()/2-FLOOR_QUAD_SIZE/2);
+  // Ensure minimum spawn area even for 1x1 world (use FLOOR_QUAD_SIZE as minimum)
+  double spawn_width = Size().X() > 0 ? Size().X() : FLOOR_QUAD_SIZE;
+  double spawn_depth = Size().Z() > 0 ? Size().Z() : FLOOR_QUAD_SIZE;
+  
+  // Generate uniformly distributed random positions across the world
+  // Use better random distribution: map [0, RAND_MAX] to [0, 1] more accurately
+  double x_pos = (double(rand()) / RAND_MAX) * spawn_width - spawn_width/2.0;
+  double z_pos = (double(rand()) / RAND_MAX) * spawn_depth - spawn_depth/2.0;
+  
+  v = new VectorClass(x_pos, 0, z_pos);
   
   return v;
 }

@@ -36,6 +36,7 @@ class OrganismClass;
 struct EventStack {
   VectorClass a,b;
   ColorClass color;
+  int frames_remaining;  // How many frames this flash should be visible
 };
 
 class UniverseClass {

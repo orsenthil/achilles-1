@@ -263,30 +263,63 @@ bool OpenGLClass::DrawOrganism(OrganismClass *o) {
 }
 
 bool OpenGLClass::DrawStack(stack<EventStack> &s) {
+  // Draw all flashes and manage their lifetime
+  // Instead of popping immediately, we'll use a temporary stack to preserve active flashes
+  stack<EventStack> temp_stack;
   EventStack es;
 
+  // Process all flashes: draw them and decrement their lifetime
   while(!s.empty()) {
-    es=s.top();
+    es = s.top();
     s.pop();
-    glPushMatrix();
+    
+    // Draw the flash if it still has frames remaining
+    if(es.frames_remaining > 0) {
+      glPushMatrix();
 #ifdef _DEBUG
-    cout << "Stack: " << es.a.X() << " ";
-    cout << es.a.Y() << " ";
-    cout << es.a.Z() << endl;
+      cout << "Stack: " << es.a.X() << " ";
+      cout << es.a.Y() << " ";
+      cout << es.a.Z() << endl;
 #endif
-    glColor3d(es.color.R(),es.color.G(),es.color.B());    
-    glTranslated(es.a.X(),es.a.Y(),es.a.Z());
+      // Make flashes more visible with brighter colors and thicker lines
+      glColor3d(es.color.R(),es.color.G(),es.color.B());    
+      glTranslated(es.a.X(),es.a.Y(),es.a.Z());
 
-
-    VectorClass distv = es.b - es.a;
-    glBegin(GL_TRIANGLES);
-    glNormal3d(distv.Z(),0,-distv.X());
-    glVertex3d(0,-0.25,0);
-    glVertex3d(distv.X(),distv.Y(),distv.Z());
-    glVertex3d(0,0.25,0);
-    glEnd();
-    glPopMatrix();
+      VectorClass distv = es.b - es.a;
+      
+      // Draw a thicker, more visible flash using GL_LINES with line width
+      glLineWidth(3.0);  // Make lines thicker for better visibility
+      glBegin(GL_LINES);
+      glVertex3d(0, 0, 0);
+      glVertex3d(distv.X(), distv.Y(), distv.Z());
+      glEnd();
+      
+      // Also draw a triangle for more visibility
+      glBegin(GL_TRIANGLES);
+      glNormal3d(distv.Z(),0,-distv.X());
+      // Make triangle slightly larger for better visibility
+      glVertex3d(0,-0.5,0);
+      glVertex3d(distv.X(),distv.Y(),distv.Z());
+      glVertex3d(0,0.5,0);
+      glEnd();
+      
+      glLineWidth(1.0);  // Reset line width
+      glPopMatrix();
+      
+      // Decrement frame counter and keep if still active
+      es.frames_remaining--;
+      if(es.frames_remaining > 0) {
+	temp_stack.push(es);
+      }
+    }
   }
+  
+  // Restore active flashes back to the original stack
+  while(!temp_stack.empty()) {
+    s.push(temp_stack.top());
+    temp_stack.pop();
+  }
+  
   return true;
 }
 

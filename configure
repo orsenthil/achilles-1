@@ -648,6 +648,7 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+DEBUG_CPPFLAGS
 GLU_LIBS
 GLU_CFLAGS
 GL_LIBS
@@ -7056,6 +7057,19 @@ printf "%s\n" "#define const /**/" >>confdefs.h
 
 fi
 
+
+
+DEBUG_CPPFLAGS=""
+if test -n "$CPPFLAGS"; then
+  case "$CPPFLAGS" in
+    *-D_DEBUG_FOOD_VISION*)
+      # Extract just the debug flag, don't duplicate CPPFLAGS
+      DEBUG_CPPFLAGS="-D_DEBUG_FOOD_VISION"
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: Food vision debugging enabled via CPPFLAGS" >&5
+printf "%s\n" "$as_me: Food vision debugging enabled via CPPFLAGS" >&6;}
+      ;;
+  esac
+fi
 
 
 
