@@ -96,9 +96,12 @@ short OrganismClass::Type() {
 
 short OrganismClass::Type(short t) {
   if(t==ORGANISM_LIVE) {
+    // Initialize to black - colors will be set dynamically based on behavior
+    // Red = aggression (set in UpdateOrganism based on outputs[3])
+    // Blue = mating tendency (set in UpdateOrganism based on outputs[2])
     color.R(0);
     color.G(0);
-    color.B(genes.Color()*3/4 + 1/4);
+    color.B(0);
   } else if(t==ORGANISM_FOOD) {
     color.R(1);
     color.G(1);

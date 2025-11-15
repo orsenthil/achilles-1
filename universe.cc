@@ -374,8 +374,21 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
   world->ChangePosition(o->Pos(),dir);
 
 
-  // Set the Aggressive coloration
-  o->Color().R(double(( abs_d(outputs[3]) > FIGHT_THRESHOLD ? FIGHT_THRESHOLD : abs_d(outputs[3]) ) / (FIGHT_THRESHOLD)));
+  // Set the Aggressive coloration (Red channel)
+  // Brighter red = more aggressive (based on fight output)
+  double red_value = double(( abs_d(outputs[3]) > FIGHT_THRESHOLD ? FIGHT_THRESHOLD : abs_d(outputs[3]) ) / (FIGHT_THRESHOLD));
+  o->Color().R(red_value);
+  
+  // Set the Mating coloration (Blue channel)
+  // Brighter blue = more likely to mate (based on mate output)
+  // Use FIGHT_THRESHOLD as scaling factor for consistency (neural net outputs can be large)
+  // This ensures blue scales similarly to red for visual consistency
+  double blue_value = double(( abs_d(outputs[2]) > FIGHT_THRESHOLD ? FIGHT_THRESHOLD : abs_d(outputs[2]) ) / (FIGHT_THRESHOLD));
+  if(blue_value > 1.0) blue_value = 1.0;
+  o->Color().B(blue_value);
+  
+  // Green channel stays at 0 (not used for live organisms)
+  o->Color().G(0);
 
   
   // Find out if this organism is near to any food, and whether or not
