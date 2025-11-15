@@ -96,8 +96,13 @@ int main(int argc, char *argv[]) {
   if(FLOOR_BLOCKS_X < 0) FLOOR_BLOCKS_X = 4;
   if(FLOOR_BLOCKS_Z < 0) FLOOR_BLOCKS_Z = 4;
 
-  printf("[INIT] Configuration: FLOOR_BLOCKS_X=%d, FLOOR_BLOCKS_Z=%d, NUM_ORGANISMS=%d, NUM_FOOD=%d\n", 
+#ifndef DEBUG_OUTPUT
+#define DEBUG_OUTPUT 1  // Default to enabled if not defined
+#endif
+#if DEBUG_OUTPUT
+  printf("[INIT] Configuration: FLOOR_BLOCKS_X=%d, FLOOR_BLOCKS_Z=%d, NUM_ORGANISMS=%d, NUM_FOOD=%d\n",
          FLOOR_BLOCKS_X, FLOOR_BLOCKS_Z, NUM_ORGANISMS, NUM_FOOD);
+#endif
 
   UniverseClass *univ=new UniverseClass(argc,argv);
   univ->MainLoop();

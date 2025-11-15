@@ -23,6 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include<math.h>
 using namespace std;
 #include"universe.h"
+
+// Debug output control: DEBUG_OUTPUT is defined in Makefile.am
+// If DEBUG_OUTPUT is 0, all debug output is disabled
+// If DEBUG_OUTPUT is 1 (or non-zero), debug output is enabled
+#ifndef DEBUG_OUTPUT
+#define DEBUG_OUTPUT 1  // Default to enabled if not defined
+#endif
 #include"opengl.h"
 #include"world.h"
 #include"orglist.h"
@@ -109,8 +116,10 @@ bool UniverseClass::MainLoop() {
    * This section creates the initial organisms and food
    */
 
+#if DEBUG_OUTPUT
   printf("[INIT] Creating initial organisms and food: NUM_ORGANISMS=%d, NUM_FOOD=%d\n", 
          NUM_ORGANISMS, NUM_FOOD);
+#endif
 
   for(i=0;i<NUM_ORGANISMS + NUM_FOOD;i++) {
     // Each Organism is represented by a unique Id
@@ -134,15 +143,21 @@ bool UniverseClass::MainLoop() {
     // If we've created all the organisms, do food instead
     if(i>=NUM_ORGANISMS) {
       o->Type(ORGANISM_FOOD); // Make it into food instead!
+#if DEBUG_OUTPUT
       printf("[INIT] Created food organism #%d\n", i - NUM_ORGANISMS + 1);
+#endif
     } else {
       // otherwise give it full energy to start
       o->Energy().EatFood(o->Energy().FoodCap());
+#if DEBUG_OUTPUT
       printf("[INIT] Created live organism #%d\n", i + 1);
+#endif
     }
   }
   
+#if DEBUG_OUTPUT
   printf("[INIT] Initialization complete. Total organisms created: %d\n", NUM_ORGANISMS + NUM_FOOD);
+#endif
   
   int frames = 0;
   long start_time = time(NULL);
@@ -156,7 +171,9 @@ bool UniverseClass::MainLoop() {
 
     cur_time=time(NULL);
     if(cur_time-start_time >= 5) {
+#if DEBUG_OUTPUT
       printf("Frames per second: %f\n", double(double(frames)/double(cur_time-start_time)));
+#endif
       start_time=cur_time;
       frames=0;
     }
@@ -191,7 +208,9 @@ bool UniverseClass::Update() {
       // Check food lifespan before calling Lifetick to show remaining time
       // Note: We can't easily access lifespan from here, so we'll log after decay
       if(!o->Lifetick()) { // check if food has decayed
+#if DEBUG_OUTPUT
 	printf("Decay! (food item expired after %d ticks, removed from world)\n", DECAY_SPAN);
+#endif
 	orglist->Remove(o->Id());
       } else
 	foodlist.push_back(o);
@@ -203,9 +222,11 @@ bool UniverseClass::Update() {
   // (and print a silly message too!)
   // BUGFIX: Only spawn if NUM_ORGANISMS > 0 (user explicitly wants organisms)
   if(NUM_ORGANISMS > 0 && (signed int)livelist.size() < NUM_ORGANISMS) {
+#if DEBUG_OUTPUT
     printf("[UPDATE] Spawning new organism: livelist.size()=%d < NUM_ORGANISMS=%d\n", 
            (int)livelist.size(), NUM_ORGANISMS);
     printf("New guy!\n");
+#endif
     token = idserver->GetToken();
     pos = world->NewPosition();
     heading = new AngleClass(0);
@@ -220,9 +241,11 @@ bool UniverseClass::Update() {
   if(NUM_FOOD > 0 && (signed int)foodlist.size() < NUM_FOOD) {
     // Food was eaten or decayed - respawn to maintain NUM_FOOD count
     // This is expected behavior: system maintains constant food supply
+#if DEBUG_OUTPUT
     printf("[UPDATE] Spawning new food: foodlist.size()=%d < NUM_FOOD=%d (food was eaten/decayed)\n", 
            (int)foodlist.size(), NUM_FOOD);
     cout << "More food!" << endl;
+#endif
     token = idserver->GetToken();
     pos = world->NewPosition();
     heading = new AngleClass(0);
@@ -232,8 +255,10 @@ bool UniverseClass::Update() {
     o->Type(ORGANISM_FOOD);
   } else if(NUM_FOOD == 0 && (signed int)foodlist.size() > 0) {
     // If user set NUM_FOOD=0 but food exists, log it (shouldn't happen after fix)
+#if DEBUG_OUTPUT
     printf("[UPDATE] WARNING: NUM_FOOD=0 but foodlist.size()=%d (this should not spawn new food)\n", 
            (int)foodlist.size());
+#endif
   }
 
   int i;
@@ -341,7 +366,7 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
   int food_i = 0;
   long food_reallen = foodvision.size();
   
-#ifdef _DEBUG_FOOD_VISION
+#if defined(_DEBUG_FOOD_VISION) && DEBUG_OUTPUT
   // Debug output: verify food vision is working
   static int debug_frame_count = 0;
   if(debug_frame_count++ % 100 == 0 && food_reallen > 0) {
@@ -400,12 +425,14 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
   while((signed int)inputs.size()<o->Brain().NumInputs()) inputs.push_back(float(rand())/RAND_MAX*2.0-1.0);
 #endif
 
-#ifdef _NN_DEBUG  
+#ifdef _NN_DEBUG
+#if DEBUG_OUTPUT
   printf("Num Inputs: %d\n",inputs.size());
   for(i=0;i<(signed int)inputs.size();i++) 
     printf("%f ",inputs[i]);
   printf("\n");
   getchar();
+#endif
 #endif
 
 
@@ -415,12 +442,14 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 
   o->Brain().GetOutputs(outputs);
 
-#ifdef _NN_DEBUG  
+#ifdef _NN_DEBUG
+#if DEBUG_OUTPUT
   printf("Num Outputs: %d\n",inputs.size());
   for(i=0;i<(signed int)outputs.size();i++) 
     printf("%f ",outputs[i]);
   printf("\n");
   getchar();
+#endif
 #endif
 
   o->Brain().Learn(o->Genes().LC(),ALPHA_COEFFICIENT);
@@ -430,7 +459,9 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
   VectorClass dir((double)(o->Genes().MaxSpeed() * double((int)(outputs[0]) % 10)/10.0)/2,(double)outputs[1]);
 
 #ifdef _DEBUG
+#if DEBUG_OUTPUT
   printf("%f %f %f\n",dir.X(),dir.Y(),dir.Z());
+#endif
 #endif
 
   // ditto for the position
@@ -475,8 +506,10 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 	if(distv.X() <= 0 && distv.Z() <= 0) {
 	  double amt_food=(1-double(bounds/MAX_REACH)) * foodlist[i]->Energy().HealthCap() * (1+o->Genes().Metabolism());
 #ifdef _DEBUG_FOOD
+#if DEBUG_OUTPUT
 	  printf("Food Eaten: %f (distance: X=%.2f, Z=%.2f, reach=%ld, size=%.2f)\n",
 		 amt_food, actual_dist_x, actual_dist_z, bounds, o->Size().X());
+#endif
 #endif
 	  EventStack es;
 	  es.a = o->Pos();
@@ -489,8 +522,10 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 	  es.frames_remaining = EVENT_FLASH_DURATION;
 	  foodstack.push(es);
 	  o->Energy().EatFood(amt_food);
+#if DEBUG_OUTPUT
 	  printf("Eat! (food amount: %.2f, new energy: %.2f/%.2f)\n", 
 		 amt_food, o->Energy().Food(), o->Energy().FoodCap());
+#endif
 	  orglist->Remove(foodlist[i]->Id());
 	  foodlist[i]=NULL;
 	  break;
@@ -511,15 +546,19 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 #ifdef _DEBUG
     char s[30];
     o->Id().String(s);
+#if DEBUG_OUTPUT
     printf("%s: %f %f %f\n",s,distv.X(),distv.Y(),distv.Z());
+#endif
 #endif
     if(distv.X() <= 0 &&  distv.Z() <= 0) { // if close enough
       vector<float> mate_outputs;
       mate->Brain().GetOutputs(mate_outputs);
       // Fight or mate, they decide!
 #ifdef _DEBUG
+#if DEBUG_OUTPUT
       cout << "Fight: " << outputs[3] << " " << mate_outputs[3] << endl;
       cout << "Mate: " << outputs[2] << " " << mate_outputs[2] << endl;
+#endif
 #endif
       // Fight condition: product of both organisms' fight outputs must exceed threshold
       // Threshold scales with population: more organisms = easier to fight
@@ -531,10 +570,12 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
       static int proximity_count = 0;
       proximity_count++;
       if(proximity_count % 20 == 0) {  // Log more frequently
+#if DEBUG_OUTPUT
 	printf("[PROXIMITY] Organisms close! fight_outputs[3]=%.2f, mate_outputs[3]=%.2f, product=%.2f, threshold=%.2f (NUM_ORGS=%d, org_count=%d)\n",
 	       outputs[3], mate_outputs[3], fight_product, fight_threshold, NUM_ORGANISMS, org_count);
 	printf("[PROXIMITY]   -> Fight would need: product > %.2f (currently %.2f)\n", fight_threshold, fight_product);
 	printf("[PROXIMITY]   -> Mate outputs: %.2f x %.2f = %.2f\n", outputs[2], mate_outputs[2], abs_f(outputs[2]) * abs_f(mate_outputs[2]));
+#endif
       }
       
       if(fight_product > fight_threshold) {
@@ -542,6 +583,7 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 	double genetic_variance = o->Genes().Variance(mate->Genes());
 	
 	// Debug: Show actual DNA values to understand why variance is 0
+#if DEBUG_OUTPUT
 	static int debug_gene_count = 0;
 	if(debug_gene_count++ < 5 && genetic_variance < 0.001) {
 	  // Access DNA directly for debugging (we'll need to add a getter or make DNA public temporarily)
@@ -557,6 +599,7 @@ bool UniverseClass::UpdateOrganism(OrganismClass *o,vector<OrganismClass *> food
 	
 	printf("[FIGHT_ATTEMPT] Product=%.2f > threshold=%.2f, genetic_variance=%.4f (need > %.4f)\n",
 	       fight_product, fight_threshold, genetic_variance, MISCEGENATION_RATE);
+#endif
 	Fight(o,mate);
       } else if (org_count < NUM_ORGANISMS+2*NUM_FOOD && abs_f(mate_outputs[2]) * abs_f(outputs[2]) > REPRODUCTION_THRESHOLD * org_count/NUM_ORGANISMS) {
 	Mate(o,mate);
@@ -589,8 +632,10 @@ bool UniverseClass::Fight(OrganismClass *o1, OrganismClass *o2) {
   if(genetic_variance < fight_variance_threshold) {
     // Organisms are essentially identical (likely a bug in variance calculation or gene generation)
     // For now, allow fights even with low variance to prevent blocking all fights
+#if DEBUG_OUTPUT
     printf("[FIGHT_WARNING] Very low genetic variance %.4f (organisms nearly identical, allowing fight anyway)\n", 
            genetic_variance);
+#endif
     // Don't return false - allow the fight to proceed
   }
 
@@ -602,19 +647,25 @@ bool UniverseClass::Fight(OrganismClass *o1, OrganismClass *o2) {
   char s1[30],s2[30];
   o1->Id().String(s1);
   o2->Id().String(s2);
+#if DEBUG_OUTPUT
   printf("%s does %f damage to %s\n",s1,damage,s2);
+#endif
 #endif
 
   // if ya don't got enough energy you can't do any damage...
   if(o1->Energy().Food() < energy_used) {
+#if DEBUG_OUTPUT
     printf("[FIGHT_BLOCKED] Not enough energy: have %.2f, need %.2f\n", 
            o1->Energy().Food(), energy_used);
+#endif
     return false;
   }
   
   // Use it if you got it
   o1->Energy().UseEnergy(energy_used);
+#if DEBUG_OUTPUT
   printf("Attack! (damage: %.2f, energy used: %.2f)\n", damage, energy_used);
+#endif
 
   // makes those little flashes between organisms :)
   EventStack es;
@@ -631,7 +682,9 @@ bool UniverseClass::Fight(OrganismClass *o1, OrganismClass *o2) {
   // Take that!
   if(!o2->Energy().TakeDamage(damage)) {
     o2->Type(ORGANISM_FOOD); // Uh oh, he died
+#if DEBUG_OUTPUT
     printf("Kill! (organism died and became food)\n");
+#endif
   }
 #ifdef _DEBUG_FIGHT
   printf("%s has %f health left.\n",s2,o2->Energy().Health());
@@ -659,7 +712,9 @@ bool UniverseClass::Mate(OrganismClass *o1, OrganismClass *o2) {
   o2->Energy().UseEnergy(o2_spend);
 
   // spread the word
+#if DEBUG_OUTPUT
   printf("Mate! (energy spent: o1=%.2f, o2=%.2f)\n", o1_spend, o2_spend);
+#endif
 
   // show a flash
   EventStack es;
