@@ -38,7 +38,8 @@ bool ShowLicense();
 bool ShowUsage(char *);
 
 bool ShowUsage(char *pn) {
-  printf("Usage: %s [ -x <num of blocks in x axis> | -z <num blocks in z axis | -f <num of initial food> | <num of initial creatures> | -v | -h]\n",pn);
+  printf("Usage: %s [ -x <num of blocks in x axis> | -z <num blocks in z axis> | -f <num of initial food> | <num of initial creatures> [<num of initial food>] | -v | -h]\n",pn);
+  printf("\nNote: You can specify food count either with -f or as the second positional argument.\n");
   printf("\n-v prints the version.\n-h prints this help.\nRest are self explanatory.\nKeys\n~~~~\nYou start off in the middle of the \"world\"\nThe arrow keys move you around, up and down are forward and back,\nand right and left will turn you with respect to the y axis.\nPageUp moves you up the y axis and PageDown moves you down it.\nESC quits.\n");
   printf("Defaults are: \n-x %d\n-z %d\n-f %d\nand initial creatures: %d\n",FLOOR_BLOCKS_X,FLOOR_BLOCKS_Z,NUM_FOOD,NUM_ORGANISMS);
   return true;
@@ -47,6 +48,7 @@ bool ShowUsage(char *pn) {
 int main(int argc, char *argv[]) {
   srand(time(NULL));
   int i;
+  int positional_arg_count = 0;  // Track positional arguments (first=organisms, second=food)
 
   ShowLicense();
   cout << endl << endl;
@@ -73,11 +75,20 @@ int main(int argc, char *argv[]) {
 	NUM_FOOD = atoi(argv[i]);
 	break;
       default:
-	printf("That wasn't an option.  Use '-h' for help.\n");
+	printf("Unknown option '-%c'.  Use '-h' for help.\n", argv[i][1]);
 	break;
       }
     } else {
-      NUM_ORGANISMS=atoi(argv[i]);
+      // Handle positional arguments: first = organisms, second = food
+      if (positional_arg_count == 0) {
+	NUM_ORGANISMS = atoi(argv[i]);
+	positional_arg_count++;
+      } else if (positional_arg_count == 1) {
+	NUM_FOOD = atoi(argv[i]);
+	positional_arg_count++;
+      } else {
+	printf("Warning: Ignoring extra positional argument '%s'\n", argv[i]);
+      }
     }
   }
   if(NUM_FOOD < 0) NUM_FOOD = 0;
