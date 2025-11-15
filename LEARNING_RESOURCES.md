@@ -52,7 +52,7 @@ This document contains Wikipedia links and tutorials for all technologies and co
   - [Autotools Tutorial by Alexandre Duret-Lutz](https://www.lrde.epita.fr/~adl/autotools.html)
   - [Autotools Mythbuster](https://autotools.io/)
   - [GNU Automake Manual](https://www.gnu.org/software/automake/manual/)
-- **Autoconf Macro Reference**: [Autoconf Macro Index](https://www.gnu.org/software/autoconf/manual/autoconf-2.69/html_node/Macro-Index.html)
+- **Autoconf Macro Reference**: [Autoconf Macro Index](https://www.sourceware.org/autobook/autobook/autobook_156.html)
 
 ### pkg-config
 - **Wikipedia**: [pkg-config](https://en.wikipedia.org/wiki/Pkg-config)
