@@ -9,7 +9,7 @@
 #endif
 
 
-#define ACHILLES_VERSION 1.1
+#define ACHILLES_VERSION 2
 
 #define USER_SPEED 0.2
 #define SCREEN_W 640
