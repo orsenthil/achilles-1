@@ -19,7 +19,7 @@ This document contains Wikipedia links and tutorials for all technologies and co
 - **Wikipedia**: [OpenGL](https://en.wikipedia.org/wiki/OpenGL)
 - **Tutorials**:
   - [Learn OpenGL](https://learnopengl.com/) - Comprehensive modern OpenGL tutorial
-  - [OpenGL Programming Guide (Red Book)](https://www.glprogramming.com/red/)
+  - [OpenGL Programming Guide (Red Book)](http://www.opengl-redbook.com/)
   - [OpenGL-Tutorial.org](https://www.opengl-tutorial.org/)
 
 ### GLU (OpenGL Utility Library)
